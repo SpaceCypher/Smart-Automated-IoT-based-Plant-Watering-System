@@ -113,8 +113,7 @@ A dedicated web dashboard is included to view and analyze plant data:
 
 - **ESP32** – Microcontroller for data collection and control  
 - **MongoDB** – Stores sensor data for long-term tracking  
-- **Express.js / Node.js** – REST API backend to receive data  
-- **React.js** – Frontend framework for dashboard  
+- **Node.js** – REST API backend to receive data  
 - **Chart.js / D3.js** – Data visualization libraries  
 - **HTTPClient Library** – For sending HTTP POST requests from ESP32  
 
