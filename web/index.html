@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>ESP32 Plant Monitor</title>
+  <meta http-equiv="refresh" content="60">
+  <style>
+    :root {
+      --primary: #4CAF50;
+      --light-green: #E8F5E9;
+      --dark-green: #2E7D32;
+      --gray: #757575;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f5f5f5;
+      color: #333;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 2rem;
+      background-color: white;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      margin-top: 2rem;
+      margin-bottom: 2rem;
+    }
+    
+    header {
+      padding: 1rem;
+      background-color: var(--light-green);
+      border-radius: 10px 10px 0 0;
+      margin-bottom: 2rem;
+    }
+    
+    h1 {
+      color: var(--dark-green);
+      margin: 0;
+      font-size: 2rem;
+    }
+    
+    .plant-info {
+      display: flex;
+      align-items: center;
+      margin-bottom: 2rem;
+      padding: 1rem;
+      background-color: #f9f9f9;
+      border-radius: 8px;
+    }
+    
+    .plant-image {
+      width: 120px;
+      height: 120px;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 2px solid var(--primary);
+      margin-right: 1.5rem;
+    }
+    
+    .plant-name {
+      font-size: 1.5rem;
+      color: var(--dark-green);
+      margin-bottom: 0.5rem;
+    }
+    
+    .plant-controls {
+      margin-top: 1rem;
+    }
+    
+    .dashboard {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    
+    .data-card {
+      background: white;
+      border-radius: 8px;
+      padding: 1.2rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      border-left: 4px solid var(--primary);
+      transition: transform 0.2s;
+    }
+    
+    .data-card:hover {
+      transform: translateY(-3px);
+    }
+    
+    .data-label {
+      font-size: 0.9rem;
+      color: var(--gray);
+      margin-bottom: 0.5rem;
+      display: block;
+    }
+    
+    .data-value {
+      font-size: 1.8rem;
+      font-weight: bold;
+      color: #333;
+    }
+    
+    .status {
+      grid-column: span 2;
+      padding: 1.5rem;
+      border-radius: 8px;
+      font-size: 1.3rem;
+      font-weight: bold;
+      text-align: center;
+      margin-top: 1rem;
+    }
+    
+    .status-water {
+      background-color: var(--light-green);
+      color: var(--dark-green);
+    }
+    
+    .status-no-water {
+      background-color: #f5f5f5;
+      color: var(--gray);
+    }
+    
+    button {
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      padding: 0.6rem 1.2rem;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+      margin-right: 0.5rem;
+      transition: background-color 0.2s;
+    }
+    
+    button:hover {
+      background-color: var(--dark-green);
+    }
+    
+    input[type="text"] {
+      padding: 0.6rem;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      margin-right: 0.5rem;
+    }
+    
+    .hidden {
+      display: none;
+    }
+    
+    footer {
+      text-align: center;
+      margin-top: 2rem;
+      color: var(--gray);
+      font-size: 0.9rem;
+    }
+    
+    .loading {
+      text-align: center;
+      padding: 2rem;
+      color: var(--gray);
+    }
+    
+    .error {
+      text-align: center;
+      padding: 2rem;
+      color: #d32f2f;
+      background-color: #ffebee;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🌿 ESP32 Plant Monitor</h1>
+    </header>
+    
+    <div class="plant-info">
+      <img id="plant-image" class="plant-image" src="/api/placeholder/120/120" alt="Plant Image">
+      <div>
+        <div class="plant-name" id="plant-name">My Plant</div>
+        <div class="plant-controls">
+          <button id="edit-plant-btn">Edit Plant Info</button>
+        </div>
+        <div id="edit-form" class="hidden">
+          <input type="text" id="new-plant-name" placeholder="Plant Name">
+          <button id="upload-image-btn">Upload Image</button>
+          <input type="file" id="image-upload" class="hidden" accept="image/*">
+          <button id="save-plant-btn">Save</button>
+        </div>
+      </div>
+    </div>
+    
+    <div id="data" class="loading">Loading...</div>
+    
+    <footer>
+      Last updated: <span id="last-updated">Just now</span>
+    </footer>
+  </div>
+  
+  <script>
+    // DOM elements
+    const plantNameElement = document.getElementById('plant-name');
+    const plantImageElement = document.getElementById('plant-image');
+    const editPlantBtn = document.getElementById('edit-plant-btn');
+    const editForm = document.getElementById('edit-form');
+    const newPlantNameInput = document.getElementById('new-plant-name');
+    const uploadImageBtn = document.getElementById('upload-image-btn');
+    const imageUpload = document.getElementById('image-upload');
+    const savePlantBtn = document.getElementById('save-plant-btn');
+    
+    // Load saved plant data from localStorage
+    function loadPlantData() {
+      const savedName = localStorage.getItem('plantName');
+      const savedImage = localStorage.getItem('plantImage');
+      
+      if (savedName) {
+        plantNameElement.textContent = savedName;
+      }
+      
+      if (savedImage) {
+        plantImageElement.src = savedImage;
+      }
+    }
+    
+    // Plant info edit functionality
+    editPlantBtn.addEventListener('click', () => {
+      editForm.classList.toggle('hidden');
+      newPlantNameInput.value = plantNameElement.textContent;
+    });
+    
+    uploadImageBtn.addEventListener('click', () => {
+      imageUpload.click();
+    });
+    
+    imageUpload.addEventListener('change', (event) => {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          plantImageElement.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+    
+    savePlantBtn.addEventListener('click', () => {
+      const newName = newPlantNameInput.value || 'My Plant';
+      plantNameElement.textContent = newName;
+      editForm.classList.add('hidden');
+      
+      // Save to localStorage
+      localStorage.setItem('plantName', newName);
+      localStorage.setItem('plantImage', plantImageElement.src);
+    });
+    
+    // Format the timestamp
+    function formatTimestamp(timestamp) {
+      const date = new Date(timestamp);
+      return date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    }
+    
+    // Update the UI with data
+    function updateUI(data) {
+      const waterNeeded = data.score > 50;
+      const statusClass = waterNeeded ? 'status-water' : 'status-no-water';
+      const statusMessage = waterNeeded ? 
+        "✅ Time to water your plant!" : 
+        "❌ Your plant doesn't need water right now.";
+      
+      document.getElementById('data').innerHTML = `
+        <div class="dashboard">
+          <div class="data-card">
+            <span class="data-label">🌡️ Temperature</span>
+            <div class="data-value">${data.temperature} °C</div>
+          </div>
+          <div class="data-card">
+            <span class="data-label">💧 Humidity</span>
+            <div class="data-value">${data.humidity} %</div>
+          </div>
+          <div class="data-card">
+            <span class="data-label">🌱 Soil Moisture</span>
+            <div class="data-value">${data.soil}</div>
+          </div>
+          <div class="data-card">
+            <span class="data-label">☀️ Light Level</span>
+            <div class="data-value">${data.light}</div>
+          </div>
+          <div class="data-card">
+            <span class="data-label">🧮 Water Score</span>
+            <div class="data-value">${data.score}/100</div>
+          </div>
+          <div class="status ${statusClass}">
+            ${statusMessage}
+          </div>
+        </div>
+      `;
+      
+      document.getElementById('last-updated').textContent = formatTimestamp(data.timestamp || new Date());
+    }
+    
+    // Fetch data from the API
+    async function fetchData() {
+      try {
+        const res = await fetch('http://{put_your_ip_here}:3000/api/data/latest');
+        if (!res.ok) {
+          throw new Error(`HTTP error: ${res.status}`);
+        }
+        const data = await res.json();
+        updateUI(data);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        document.getElementById('data').innerHTML = `
+          <div class="error">
+            <p>Error loading data. Please check your connection.</p>
+            <p>Details: ${error.message}</p>
+          </div>
+        `;
+      }
+    }
+    
+    // Load saved plant data on page load
+    loadPlantData();
+    
+    // Initial data fetch
+    fetchData();
+    
+    // Refresh data every 5 seconds
+    setInterval(fetchData, 5000);
+  </script>
+</body>
+</html>
