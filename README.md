@@ -98,7 +98,7 @@ A dedicated web dashboard is included to view and analyze plant data:
 - **Analytics with Graphs** to monitor changes over time
 - **Responsive UI** for mobile and desktop access
 
-### 🖼️ Screenshots (Add your screenshots here)
+### 🖼️ Screenshots
 
 
 **🔹 Analytics and Graphs**  
@@ -118,11 +118,6 @@ A dedicated web dashboard is included to view and analyze plant data:
 - **Chart.js / D3.js** – Data visualization libraries  
 - **HTTPClient Library** – For sending HTTP POST requests from ESP32  
 
----
-
-## 🔐 Authentication (Optional)
-
-You can add user authentication to the dashboard for private access and user-based plant data tracking.
 
 ---
 
